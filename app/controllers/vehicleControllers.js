@@ -4,6 +4,7 @@ const Vehicle = db.Vehicle;
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async')
 const CustomError = require("../utils/customErrors.js"); 
+const uploadtocloudinary = require('../middlewares/cloudinary').uploadtocloudinary;
 const Op = require("sequelize").Op;
 const path = require('path');
 
@@ -12,6 +13,7 @@ const registerVehicle = asyncWrapper(async (req, res) => {
     const { vehicleName, vehicleType, vehicleNumber, vehicleModel, vehicleColor, vehicleStatus, vehicleDescription, vehicleLocation, vehicleCapacity, type, imagename, data } = req.body;
     const { userId } = req.params;
     const { mimetype, originalname, filename } = req.file;
+    const filepath = req.file.path;
     const user = await User.findOne({ where: { id: userId } });
 
     if (!user) {
@@ -35,8 +37,14 @@ const registerVehicle = asyncWrapper(async (req, res) => {
         imagename: originalname,
         data: filename,
     });
-
-    res.status(200).json({message: "Vehicle registered successfully", vehicle});
+    const result = await uploadtocloudinary(filepath, originalname);
+    res.status(201).json({
+        status: 'success',
+        data: {
+            vehicle,
+            result
+        }
+    });
 });
 
 const getVehicle = asyncWrapper(async (req, res) => {

@@ -1,4 +1,6 @@
 const multer = require("multer");
+const uploadtocloudinary = require('../middlewares/cloudinary').uploadtocloudinary;
+
 
 const imageFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image")) {
@@ -9,7 +11,7 @@ const imageFilter = (req, file, cb) => {
 };
 
 var storage = multer.diskStorage({
-  destination: "images",
+  destination: "uploads",
   filename: (req, file, cb) => {
     if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
         return cb(new Error("Please upload an image."));
@@ -18,9 +20,12 @@ var storage = multer.diskStorage({
     },
 });
 
+var uploadFile = multer({ 
+  storage: storage,
+  limits: { fileSize: 1024 * 1024 * 5 }, 
+  fileFilter: imageFilter });
 
-var uploadFile = multer({ storage: storage, fileFilter: imageFilter });
-module.exports = uploadFile;
+  module.exports = uploadFile;
 
 
 
