@@ -7,10 +7,12 @@ const asyncWrapper = require('../middlewares/async')
 const { sendMail } = require("../utils/sendMail.js");
 const generatePassword = require('../utils/StringGenerator.js');
 const CustomError = require("../utils/customErrors.js");
+const bcrypt = require('bcryptjs');
 
 // ADMIN AUTHENTICATION
+
 const registerAdmin = asyncWrapper(async (req, res) => {
-    const { username, email, password, role } = req.body;
+    const { fullName,username, email, password } = req.body;
 
     // generate code for verification
     let usercode = Math.floor(100000 + Math.random() * 90000);
@@ -22,55 +24,87 @@ const registerAdmin = asyncWrapper(async (req, res) => {
     if (userExist) {
         throw new CustomError.BadRequestError("Email already exists");
     }
+    const user = await User.create({
+        fullName,
+        username,
+        email,
+        password,
+        role,
+        verification_code
+    });   
+    // delete verification code and user after 10 minutes
+    setTimeout(async () => {
+        if (user.verification_code !== null) {
+            await User.update({ verification_code: '000' }, { where: { email } });
+            // delete user if verification code is expired
+            await User.destroy({ where: { verification_code: '000' } });
+        } else {
+            return;
+        }
+    }, 60000);
+     
     // send verification code to email
     const mailOptions = {
         email: email,
         title: "TAXIMANIA Verification Code",
-        message: `Your verification code is ${usercode}`,
+        message: `Your verification code is ${usercode}
+        Please enter this code to verify your account, it will expire in 10 minutes`,
     };
     await sendMail(mailOptions);
 
     const mailOptions2 = {
         email: process.env.EMAIL_RECEIVER_ADDRESS,
         title: "TAXIMANIA Admin request Verification Code",
-        message: `New Admin request for ${username}
+        message: `New Admin request for ${username}, with email ${email},
                 --------------------------------------
                 verification code is ${admincode}`,
     };
     await sendMail(mailOptions2);
 
-    const user = await User.create({
-        username,
-        email,
-        password,
-        role,
-        verification_code
-    });
+    const userData = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+    };
+
+
     res.status(201).json({
         message: "User created, verification code sent to email, please verify",
-        user, code: verification_code
+        userData , code: verification_code
     });
 })
 
 const verifyAdmin = asyncWrapper(async (req, res) => {
     const { email, verification_code } = req.body;
-    const user = await User.findOne({ where: { email } });
-    if (user.verification_code === verification_code) {
-        user.role = "ADMIN";
-        user.verification_code = null;
-        res.status(200).json({ message: "ADMIN verified" });
-    } else {
-        res.status(400).json({ message: "Invalid verification code" });
+    const user = await User.findOne({ where: { email }});
+    switch (user.verification_code) {
+        case verification_code:
+            user.role = "ADMIN";
+            user.verification_code = null;
+            res.status(200).json({ message: "ADMIN verified" });                
+            break;
+        case '000':
+            res.status(401).json({ message: "Verification code expired" });
+            break;
+        case null:
+            res.status(401).json({ message: "User already verified" });
+            break;   
+        default:
+            throw new CustomError.BadRequestError("Invalid verification code");           
     }
+    await user.save();
 })
 
 const loginAdmin = asyncWrapper(async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ where: { email } });
-    const blacklistedtoken = await Blacklist.findOne({ where: { token : req.headers.authorization } });
-    if (blacklistedtoken) {
-        throw new CustomError.UnauthorizedError("Token has been blacklisted");
-    }
+    // if (req.headers.authorization) {
+    //     const blacklistedtoken = await Blacklist.findOne({ where: { token : req.headers.authorization } });
+    //     if (blacklistedtoken) {
+    //         throw new CustomError.UnauthorizedError("Token has been blacklisted");
+    //     }
+    // }
 
     if (!user) {
         throw new CustomError.BadRequestError("Email does not exist");
@@ -92,9 +126,15 @@ const loginAdmin = asyncWrapper(async (req, res) => {
         email: user.email,
         role: user.role,
     });
+    const userData = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+    };      
     res.status(200).json({
         message: "Admin logged in successfully",
-        user,
+        userData,
         REFRESH_TOKEN,
         ACCESS_TOKEN,
     });
@@ -107,8 +147,7 @@ const forgotPassword = asyncWrapper(async (req, res) => {
         throw new CustomError.BadRequestError("Email does not exist");
     }
     const temporarypassword = await generatePassword();
-    const hashedPassword = await bcrypt.hash(temporarypassword, 10);    
-    const updated = await User.update({ password: hashedPassword }, { where: { email } });
+    const updated = await User.update({ password: temporarypassword }, { where: { email } });
 
     if (updated) {
         const mailOptions = {
@@ -156,9 +195,7 @@ const logout = asyncWrapper(async (req, res) => {
 const validateToken = async (req, res) => {
     if (!req.headers) { throw new CustomError.BadRequestError("No headers") }
     const blacklistedtoken = await Blacklist.findOne({ where: { token: req.headers.authorization } });
-    if (blacklistedtoken) {
-        throw new CustomError.UnauthorizedError("Token has been blacklisted");
-    }
+    if (blacklistedtoken) { throw new CustomError.UnauthorizedError("Token has been blacklisted");}
 
     const token = req.headers.authorization.split(" ")[1];
     if (!token) { throw new CustomError.BadRequestError("No token") }

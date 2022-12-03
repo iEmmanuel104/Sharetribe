@@ -57,7 +57,7 @@ const host = require('./app/routes/hostRoute.js');
 const vehicle = require('./app/routes/vehicleRoute.js');
 
 app.use('/api/v1/auth', authRoute);
-app.use('/api/v1/host', host);
+// app.use('/api/v1/host', host);
 app.use('/api/v1/vehicle', vehicle);
 
 

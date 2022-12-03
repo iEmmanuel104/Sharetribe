@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { registerAdmin,
+const { 
+    registerAdmin,
     verifyAdmin,
     loginAdmin,
     validateToken,
