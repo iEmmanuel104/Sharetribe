@@ -1,5 +1,6 @@
 const cloudinary = require('cloudinary').v2;
 require('dotenv').config();
+const fs = require('fs');
 
 cloudinary.config({
     cloud_name: process.env.CLOUD_NAME,
@@ -7,19 +8,25 @@ cloudinary.config({
     api_secret: process.env.API_SECRET
 });
 
-const uploadtocloudinary = (filepath) => {
-    const options = {
-        use_filename: true,
-        folder: 'uploads'
-    };
+const uploadtocloudinary = (filepath, name) => {
     try {
-        const result = cloudinary.uploader.upload(filepath, options);
-        console.log(result);
-        return result; 
-        // return result.public_id;
+        const options = {
+            use_filename: true,
+            folder: 'uploads',
+            public_id: name
+        };
+        return cloudinary.uploader.upload(filepath, options)
+        .then((result) => {
+            // assign the result to a variable
+            let cloudinaryResult = result;
+            // delete the file from the server
+            fs.unlinkSync(filepath)
+            return { message: 'success', url: cloudinaryResult.secure_url }
+        })
     } catch (error) {
         console.log(error);
-        return error;
+        fs.unlinkSync(filepath)
+        return { message: 'error', error: error }
     }
 };
 

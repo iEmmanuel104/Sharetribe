@@ -9,8 +9,9 @@ module.exports  = function (roles) {
             }
             const token = authHeader.split(" ")[1];
                 const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_JWT_SECRET);
+                console.log('auhorisation passed');
                 // const decoded = jwt.verify(token, "secret2");
-                if (!allowed_user.includes(decoded.user_type)) {
+                if (!allowed_user.includes(decoded.role)) {
                     return res.status(403).json({ message: "Unauthorised Access" });
                 }
                 next();

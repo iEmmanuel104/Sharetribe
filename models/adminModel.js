@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define("User", {
-    id: {
+    user_id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
@@ -43,6 +43,12 @@ module.exports = (sequelize, DataTypes) => {
     password: {
       type: DataTypes.STRING,
         allowNull: false,
+        validate: {
+          len: [6, 500],
+          notNull: {
+            msg: "Please enter a password, minimum of 6 characters"
+          }
+        }
     },
     role: {
       type: DataTypes.ENUM(["ADMIN", "HOST", "GUEST"]),
@@ -51,7 +57,7 @@ module.exports = (sequelize, DataTypes) => {
    },
    verification_code: { 
       type: DataTypes.STRING,
-      allowNull: true,
+      // allowNull: true,
     },
     address: {
       type: DataTypes.STRING,
@@ -67,23 +73,28 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     agedeclaration: {
-      type: DataTypes.BOOLEAN,
+      type: DataTypes.ENUM(["on", "off"]),
       allowNull: true,
-      defaultValue: false
+      defaultValue: "off"
     },
     terms: {
-      type: DataTypes.BOOLEAN,
+      type: DataTypes.ENUM(["on", "off"]),
       allowNull: true,
-      defaultValue: false
+      defaultValue: "off"
     }
  }, {
         tableName: 'user',
-        timestamps: false,
+        // timestamps: false,
         underscored: true,
         hooks: {
             beforeCreate(user) {
                 user.password = bcrypt.hashSync(user.password, bcrypt.genSaltSync(10));
                 // user.username = user.username.toLowerCase();
+                user.role = user.role.toUpperCase();
+                user.status = user.status.toUpperCase();
+            },
+            beforeUpdate(user) {
+                user.password = bcrypt.hashSync(user.password, bcrypt.genSaltSync(10));
                 user.role = user.role.toUpperCase();
                 user.status = user.status.toUpperCase();
             }
@@ -99,10 +110,17 @@ module.exports = (sequelize, DataTypes) => {
     };
     User.associate = (models) => {
         User.hasMany(models.Vehicle, {
+            foreignKey: 'user_id',
+            onDelete: 'CASCADE',
+            onUpdate : 'CASCADE'
+        });
+        User.hasMany(models.Booking, {
+            foreignKey: 'user_id',
             onDelete: 'CASCADE',
             onUpdate : 'CASCADE'
         });
     };
+
 
   return User;
 };

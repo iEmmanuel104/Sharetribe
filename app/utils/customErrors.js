@@ -1,7 +1,14 @@
-// const {StatusCodes} = require('http-status-codes');
+// custom errors for API
 class CustomAPIError extends Error {
   constructor(message) {
     super(message)
+  }
+// return the error message as JSON with the status code
+  serializeErrors() {
+    return {
+      message: this.message,
+      statusCode: this.statusCode
+    }
   }
 }
 
@@ -9,6 +16,13 @@ class BadRequestError extends CustomAPIError {
   constructor(message) {
     super(message);
     this.statusCode = 400;
+  }
+  // response to the client
+  serializeErrors() {
+    return {
+      message: this.message,
+      statusCode: this.statusCode
+    }
   }
 }
 

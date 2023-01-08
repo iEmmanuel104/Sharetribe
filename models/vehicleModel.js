@@ -2,20 +2,12 @@
 module.exports = (sequelize, DataTypes) => {
     const Vehicle = sequelize.define('Vehicle', {
         vehicleId: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true,
             allowNull: false
         },
-        vehicleName: {
-            type: DataTypes.STRING,
-            allowNull: false
-        },
-        vehicleType: {
-            type: DataTypes.STRING,
-            allowNull: false
-        },
-        vehicleNumber: {
+        vehicleMake: {
             type: DataTypes.STRING,
             allowNull: false
         },
@@ -23,19 +15,31 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false
         },
+        vehicleCondition: {
+            type: DataTypes.ENUM(["New", "Used"]),
+            allowNull: false
+        },
+        vehicleType: {  
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        vehicleYear: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        vehicleTransmission: {
+            type: DataTypes.ENUM(["Manual", "Automatic"]),
+            allowNull: false
+        },
+        vehicleFuel: {
+            type: DataTypes.ENUM(["Gasoline", "Diesel", "Electric"]),
+            allowNull: false
+        },
         vehicleColor: {
             type: DataTypes.STRING,
             allowNull: false
         },
-        vehicleStatus: {
-            type: DataTypes.ENUM(["AVAILABLE", "UNAVAILABLE"]),
-            allowNull: false
-        },
-        vehicleDescription: {
-            type: DataTypes.STRING,
-            allowNull: false
-        },
-        vehicleLocation: {
+        vehicleDoors: {
             type: DataTypes.STRING,
             allowNull: false
         },
@@ -43,23 +47,56 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false
         },
-        type: {
+        vehiclerate: {
             type: DataTypes.STRING,
-        },
-        imagename: {
+            allowNull: false
+        },        
+        vehicleDescription: {
             type: DataTypes.STRING,
+            allowNull: false
+        },  
+        vehiclePlateNumber: {
+            type: DataTypes.STRING,
+            allowNull: false
         },
-        data: {
-            type: DataTypes.BLOB('long'),
+        vehicleIdNumber: {
+            type: DataTypes.STRING,
+            allowNull: false
         },
+        vehicleRegistrationDate: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        vehicleStatus: {
+            type: DataTypes.ENUM(["AVAILABLE", "UNAVAILABLE"]),
+            defaultValue: "UNAVAILABLE",
+            allowNull: false
+        },
+        vehicleLocation: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },        
+        vehicleImages: {
+            type: DataTypes.ARRAY(DataTypes.STRING),
+            allowNull: false
+        },
+        isverified: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        }
     }, {
         tableName: 'vehicle',
-        timestamps: false,
         underscored: true
     });
     Vehicle.associate = (models) => {
         Vehicle.belongsTo(models.User, {
-            foreignKey: 'userId',
+            foreignKey: 'user_id',
+            onDelete: 'CASCADE',
+            onUpdate : 'CASCADE'
+        });
+        Vehicle.hasMany(models.Booking, {
+            foreignKey: 'vehicle_id',
             onDelete: 'CASCADE',
             onUpdate : 'CASCADE'
         });
