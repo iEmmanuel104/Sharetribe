@@ -10,18 +10,20 @@ const {
     deleteVehicle,
     getVehicleById,
     searchVehicle,
-    getVehicleImages
+    getVehicleImages,
+    verifyVehicle
 } = require('../controllers/vehicleControllers.js');
  
 // vehicle routes
 router.post('/register/:userId', permit("GUEST HOST"), upload.array("image", 5), registerVehicle);
 router.get('/getall', getAllVehicle);
 router.get('/get/:userId', getuserVehicles);
-router.get('/get/:userId/:vehicleId', getVehicleById);
+router.get('/single/:vehicleId', getVehicleById);
 router.get('/getimages/:userId/:vehicleId', getVehicleImages);
 router.patch('/update/:userId/:vehicleId', permit("ADMIN HOST"), upload.single('image'), updateVehicle);
 router.delete('/delete/:userId/:vehicleId', permit("ADMIN HOST"), deleteVehicle);
 router.get('/search/:userId', searchVehicle);
+router.patch('/verify/:vehicleId', permit("ADMIN"), verifyVehicle);
 
 
 module.exports = router;

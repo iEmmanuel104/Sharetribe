@@ -23,7 +23,7 @@ router.post('/admin/login', loginAdmin);
 router.post('/validate', validateToken);
 router.post('/forgotpassword', forgotPassword);
 router.post('/passwordreset',permissions("ADMIN"), passwordreset);
-router.post('/logout', permissions("HOST ADMIN"), logout);
+router.post('/logout', logout);
 router.post('/signup', registerHost);
 router.post('/verify', verifyHost );
 router.post('/resendverificationcode', resendverificationcode);

@@ -7,18 +7,22 @@ const CustomError = require("../utils/customErrors.js");
 const uploadtocloudinary = require('../middlewares/cloudinary').uploadtocloudinary;
 const Op = require("sequelize").Op;
 const path = require('path');
+const { vehicleRegristrationMail } = require("../utils/mailTemplates.js");
 const { sequelize, Sequelize } = require('../../models');
 
 
 const registerVehicle = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
 
-        const { vehicleMake, vehicleModel, vehicleCondition, vehicleType, vehicleYear, vehicleTransmission, vehicleFuel, vehicleColor, vehicleDoors, vehicleCapacity, vehiclerate, vehicleDescription, vehiclePlateNumber, vehicleIdNumber, vehicleRegistrationDate, vehicleLocation, vehicleImages } = req.body;     
+        const { vehicleMake, vehicleModel, vehicleCondition, vehicleType, vehicleYear, vehicleTransmission, vehicleFuel, vehicleColor, vehicleDoors, vehicleCapacity, vehiclerate, vehicleDescription, vehiclePlateNumber, vehicleIdNumber, vehicleRegistrationDate, vehicleLocation } = req.body;     
         const { userId } = req.params;
-        const { } = req.files;
+        // const { } = req.files;
         // const filepath = req.files.image.tempFilePath;
         const user = await User.findOne({ where: { user_id: userId } });
-        const vehicleExist = await Vehicle.findOne({ where: { vehiclePlateNumber, vehicleIdNumber } });   
+        const vehicleExist = await Vehicle.findOne({ where: { 
+            vehicle_plate_number : vehiclePlateNumber, 
+            vehicle_id_number: vehicleIdNumber 
+        } });   
         if (!user) {
             return next(new CustomError.BadRequestError(`No user with id : ${userId}`));
         }
@@ -35,6 +39,7 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
         var bufferarray = [];
         for (let i = 0; i < req.files.length; i++) {
             var localfilepath = req.files[i].path;
+            var originalname = req.files[i].originalname;
             var uploadresult = await uploadtocloudinary(localfilepath, originalname);
             // check for success response
             if (uploadresult.message === 'error') {
@@ -67,6 +72,12 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
             vehicleLocation,
             vehicleImages: bufferarray
         }, { transaction: t });
+
+        if (!vehicle) {
+            return next(new CustomError.BadRequestError("Error creating vehicle"));
+        }
+        // send mail to user
+        await vehicleRegristrationMail(user.email, user.fullName, vehicle.vehiclePlateNumber);
 
         res.status(201).json({
             status: 'success',
@@ -134,13 +145,16 @@ const deleteVehicle = asyncWrapper(async (req, res, next) => {
 });
 
 const getAllVehicle = asyncWrapper(async (req, res, next) => {
-    const vehicle = await Vehicle.findAll();
+    const vehicle = await Vehicle.findAll({where: { 
+        // vehicle_status: 'AVAILABLE',
+        // isverified: true
+    }}, {order : [['updatedAt', 'ASC']]});
     res.status(200).json({ vehicle });
 });
 
 const getVehicleById = asyncWrapper(async (req, res, next) => {
     const { vehicleId } = req.params;
-    const vehicle = await Vehicle.findOne({ where: { id: vehicleId } });
+    const vehicle = await Vehicle.findOne({ where: { vehicle_id: vehicleId } });
     res.status(200).json({ vehicle });
 });
 
@@ -190,6 +204,21 @@ const getVehicleImages = asyncWrapper(async (req, res, next) => {
     res.status(404).json({ message: "No image found" });
 });
 
+const verifyVehicle = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const { vehicleId } = req.params;
+        const vehicle = await Vehicle.findOne({ where: { vehicleId } });
+
+        if (!vehicle) {
+            return next(new CustomError.BadRequestError(`No vehicle with id : ${vehicleId}`));
+        }
+
+        const verify = await Vehicle.update({ isverified: true }, { where: { vehicleId } }, { transaction: t });
+        res.status(200).json({ verify });
+    });
+});
+
+
   
         
 
@@ -202,7 +231,8 @@ module.exports = {
     getAllVehicle,
     getVehicleById,
     searchVehicle,
-    getVehicleImages
+    getVehicleImages,
+    verifyVehicle
 };
 
 

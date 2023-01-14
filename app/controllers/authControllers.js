@@ -4,7 +4,13 @@ const Blacklist = db.Blacklist;
 require('dotenv').config();
 const authService = require("../utils/auth.service.js");
 const asyncWrapper = require('../middlewares/async')
-const { sendMail } = require("../utils/sendMail.js");
+const { sendAdminVerificationMail,
+    sendSuperAdminRequestMail,
+    sendforgotPasswordMail,
+    userVerificationMail,
+
+ } = require("../utils/mailTemplates.js");
+
 const generatePassword = require('../utils/StringGenerator.js');
 const CustomError = require("../utils/customErrors.js");
 const bcrypt = require('bcryptjs');
@@ -13,7 +19,7 @@ const { sequelize, Sequelize } = require('../../models');
 // ADMIN AUTHENTICATION
 
 const registerAdmin = asyncWrapper(async (req, res, next) => {
-    const result = await sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { fullName,username, email, password } = req.body;
 
         // generate code for verification
@@ -53,22 +59,8 @@ const registerAdmin = asyncWrapper(async (req, res, next) => {
         }, 600000);
         
         // send verification code to email
-        const mailOptions = {
-            email: email,
-            title: "TAXIMANIA Verification Code",
-            message: `Your verification code is ${usercode}
-            Please enter this code to verify your account, it will expire in 10 minutes`,
-        };
-        await sendMail(mailOptions);
-
-        const mailOptions2 = {
-            email: process.env.EMAIL_RECEIVER_ADDRESS,
-            title: "TAXIMANIA Admin request Verification Code",
-            message: `New Admin request for ${username}, with email ${email},
-                    --------------------------------------
-                    verification code is ${admincode}`,
-        };
-        await sendMail(mailOptions2);
+        await sendAdminVerificationMail(email, fullName, usercode);
+        await sendSuperAdminRequestMail(process.env.SUPER_ADMIN_EMAIL, fullName, admincode);
 
         const userData = {
             id: user.id,
@@ -85,7 +77,7 @@ const registerAdmin = asyncWrapper(async (req, res, next) => {
 })
 
 const verifyAdmin = asyncWrapper(async (req, res, next) => {
-    const result = sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email, verification_code } = req.body;
         const user = await User.findOne({ where: { email }});
         switch (user.verification_code) {
@@ -108,7 +100,7 @@ const verifyAdmin = asyncWrapper(async (req, res, next) => {
 })
 
 const loginAdmin = asyncWrapper(async (req, res, next) => {
-    const result = await sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email, password } = req.body;
         const user = await User.findOne({ where: { email } });
 
@@ -126,11 +118,14 @@ const loginAdmin = asyncWrapper(async (req, res, next) => {
             id: user.id,
             email: user.email,
             role: user.role,
+            timestamps: Date.now(),
         });
         const ACCESS_TOKEN = await authService().issue_AccessToken({
             id: user.id,
             email: user.email,
             role: user.role,
+            rfshtkn: REFRESH_TOKEN,
+            timestamps: Date.now(),
         });
         const userData = {
             id: user.id,
@@ -148,7 +143,7 @@ const loginAdmin = asyncWrapper(async (req, res, next) => {
 })
 
 const forgotPassword = asyncWrapper(async (req, res, next) => {
-    const result = await sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email } = req.body;
         const user = await User.findOne({ where: { email } });
         if (!user) {
@@ -159,12 +154,7 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
         const updated = await User.update({ password: hashedPassword }, { where: { email } }, { transaction: t });
 
         if (updated) {
-            const mailOptions = {
-                email: email,
-                title: "TAXIMANIA Temporary Password",
-                message: `Your temporary password is ${temporarypassword} `,
-            };
-            await sendMail(mailOptions);
+            await sendforgotPasswordMail(email, temporarypassword);
             console.log(temporarypassword)
             res.status(200).json({ message: "Temporary password sent to email" });
         }
@@ -172,7 +162,7 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
 })
 
 const passwordreset = asyncWrapper(async (req, res, next) => {
-    const result = await sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email, password, password2 } = req.body;
         if (password !== password2) {
         return next(new CustomError.BadRequestError("Passwords do not match"));
@@ -190,7 +180,7 @@ const passwordreset = asyncWrapper(async (req, res, next) => {
 })
 
 const logout = asyncWrapper(async (req, res, next) => {
-    const result = await sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email, ACCESS_TOKEN, REFRESH_TOKEN } = req.body;
         const user = await User.findOne({ where: { email } });
         if (!user) {
@@ -243,61 +233,57 @@ const validateToken = async (req, res, next) => {
 
 // HOST/USER AUTHENTICATION
 const registerHost = asyncWrapper(async (req, res, next) => {
-    const result = sequelize.transaction(async (t) => {
-    const { firstname, lastname, username, email, password, address, phone, agedeclaration,terms } = req.body;
-    // VALIDATE USER INPUT
-    if (!username || !email || !password || !address || !phone || !agedeclaration || !terms || !firstname || !lastname) {
-        return next(new CustomError.BadRequestError("Please fill in all fields"));
-    }
-    if (agedeclaration !== "on") {
-        return next(new CustomError.BadRequestError("You must be 18 years or older to register"));
-    }
-    if (terms !== "on") {
-        return next(new CustomError.BadRequestError("You must agree to the terms and conditions"));
-    }
-    // check if email exists
-    const emailAlreadyExists = await User.findOne({ where: { email } });
-    if (emailAlreadyExists) {
-        return next(new CustomError.BadRequestError("Email already exists"));
-    }
-    // check if username exists
-    const usernameAlreadyExists = await User.findOne({ where: { username } });
-    if (usernameAlreadyExists) {
-        return next(new CustomError.BadRequestError("Username is taken"));
-        // throw new CustomError.BadRequestError("Username is taken");
-    }
-    const fullName = firstname + " " + lastname;
-
-    // GENERATE VERIFICATION CODE
-    let usercode = Math.floor(100000 + Math.random() * 90000);
-    const verification_code = await usercode.toString();
-    // delete verification code and user after 10 minutes
-
-    setTimeout(async () => {
-        if (user.verification_code !== null) {
-            await User.update({ verification_code: '000' }, { where: { email } });
+    await sequelize.transaction(async (t) => {
+        const { firstname, lastname, username, email, password, address, phone, agedeclaration,terms } = req.body;
+        // VALIDATE USER INPUT
+        if (!username || !email || !password || !address || !phone || !agedeclaration || !terms || !firstname || !lastname) {
+            return next(new CustomError.BadRequestError("Please fill in all fields"));
         }
-    }, 600000)
+        if (agedeclaration !== "on") {
+            return next(new CustomError.BadRequestError("You must be 18 years or older to register"));
+        }
+        if (terms !== "on") {
+            return next(new CustomError.BadRequestError("You must agree to the terms and conditions"));
+        }
+        // check if email exists
+        const emailAlreadyExists = await User.findOne({ where: { email } });
+        if (emailAlreadyExists) {
+            return next(new CustomError.BadRequestError("Email already exists"));
+        }
+        // check if username exists
+        const usernameAlreadyExists = await User.findOne({ where: { username } });
+        if (usernameAlreadyExists) {
+            return next(new CustomError.BadRequestError("Username is taken"));
+            // throw new CustomError.BadRequestError("Username is taken");
+        }
+        const fullName = firstname + " " + lastname;
 
-    // const role = "HOST"
-    const user = await User.create({
-        username, fullName, email, password, address, phone, agedeclaration, terms, verification_code
-    }, { transaction: t });
-    const mailOptions = {
-        email: email,
-        title: "TAXIMANIA Verification Code",
-        message: `Your verification code is ${verification_code} `,
-    };
-    await sendMail(mailOptions);
-    res.status(200).json({
-        message: "Welcome to Taximania, please check your email for your verification code",
-        user,
-    });
-})
+        // GENERATE VERIFICATION CODE
+        let usercode = Math.floor(100000 + Math.random() * 90000);
+        const verification_code = await usercode.toString();
+        // delete verification code and user after 10 minutes
+
+        setTimeout(async () => {
+            if (user.verification_code !== null) {
+                await User.update({ verification_code: '000' }, { where: { email } });
+            }
+        }, 600000)
+
+        // const role = "HOST"
+        const user = await User.create({
+            username, fullName, email, password, address, phone, agedeclaration, terms, verification_code
+        }, { transaction: t });
+        // SEND VERIFICATION CODE TO EMAIL
+        await userVerificationMail(user.email, user.fullName, user.verification_code);
+        res.status(200).json({
+            message: "Welcome to Taximania, please check your email for your verification code",
+            user,
+        });
+    })
 })
 
 const verifyHost = asyncWrapper(async (req, res, next) => {
-    const result = sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email, verification_code } = req.body;
         const user = await User.findOne({ where: { email } });
         if (!user) {
@@ -314,7 +300,7 @@ const verifyHost = asyncWrapper(async (req, res, next) => {
 })
 
 const resendverificationcode = asyncWrapper(async (req, res, next) => {
-    const result = sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email } = req.body;
         const user = await User.findOne({ where: { email } });
         if (!user) {
@@ -328,6 +314,7 @@ const resendverificationcode = asyncWrapper(async (req, res, next) => {
         }
         // GENERATE VERIFICATION CODE
         let usercode = Math.floor(100000 + Math.random() * 90000);
+        let name = user.fullName;
         const verification_code = await usercode.toString();
         const updated = await User.update({ verification_code: verification_code }, { where: { email } }, { transaction: t });
         // delete verification code and user after 10 minutes
@@ -341,20 +328,15 @@ const resendverificationcode = asyncWrapper(async (req, res, next) => {
         }, 600000)
 
         if (updated) {
-            const mailOptions = {
-                email: email,
-                title: "TAXIMANIA Verification Code",
-                message: `Your verification code is ${verification_code} `,
-            };
-            await sendMail(mailOptions);
-            res.status(200).json({ message: "Verification code sent successfully",});
+            await userVerificationMail(user.email, name, user.verification_code);   
+            res.status(200).json({ message: "Verification code Resent successfully",});
         }
     })
 })
 
         
 const loginHost = asyncWrapper(async (req, res, next) => {
-    const result = sequelize.transaction(async (t) => {
+    await sequelize.transaction(async (t) => {
         const { email, password } = req.body;
         const user = await User.findOne({ where: { email } });
         if (!user) {
@@ -393,6 +375,22 @@ const loginHost = asyncWrapper(async (req, res, next) => {
     })
 })
 
+// const pagerefresh = asyncWrapper(async (req, res, next) => {
+//     await sequelize.transaction(async (t) => {
+//         const { REFRESH_TOKEN, ACCESS_TOKEN } = req.body;
+//         // verify access token
+//         const decoded = await authService().verify_AccessToken(ACCESS_TOKEN);
+//         // check if access token is expired
+//         if (decoded.exp < Date.now() / 1000) {
+//             // verify refresh token
+//             const decoded = await authService().verify_RefreshToken(REFRESH_TOKEN);
+//             // check if refresh token is expired
+//             if (decoded.exp < Date.now() / 1000) {
+//                 return next(new CustomError.UnauthorizedError("Refresh token expired"));
+//             }
+//             // generate new access token
+//             const loadUser = {
+//                 id:
 
 
 module.exports = {

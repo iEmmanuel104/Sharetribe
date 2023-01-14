@@ -20,7 +20,7 @@ const uploadtocloudinary = (filepath, name) => {
             // assign the result to a variable
             let cloudinaryResult = result;
             // delete the file from the server
-            fs.unlinkSync(filepath)
+            // fs.unlinkSync(filepath)
             return { message: 'success', url: cloudinaryResult.secure_url }
         })
     } catch (error) {

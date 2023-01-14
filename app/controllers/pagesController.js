@@ -13,19 +13,21 @@ const authService = require("../utils/auth.service.js");
 const { sendMail } = require("../utils/sendMail.js");
 const generatePassword = require('../utils/StringGenerator.js');
 const bcrypt = require('bcryptjs');
+const { sequelize } = require("../../models");
 
 const loadDashboard = asyncWrapper(async (req, res) => {
-    // ensure user token is valid
-    const token = req.headers.authorization.split(" ")[1];
-    const decoded = await authService.verifyToken(token);
-    const user = await User.findOne({ where: { id: decoded.id } });
-    if (!user) {
-        throw new CustomError(`No user with id : ${decoded.id}`, 404);
-    }
-    const vehicle = await Vehicle.findAll({ where: { userId: decoded.id } });
-    const blacklist = await Blacklist.findAll({ where: { userId: decoded.id } });
-    res.status(200).json({ vehicle, blacklist });
-
+    await sequelize.transaction(async (t) => {
+        const vehicle = await Vehicle.findAll({ where: { 
+            vehicle_status: 'AVAILABLE',
+            isverified: true } });
+        if (!vehicle) {
+            return next(new CustomError.BadRequestError("No vehicle available for booking"));
+        }
+        res.status(200).json({
+            message: "Available vehicles",
+            vehicle
+        });
+    });
 });
 
 module.exports = {
