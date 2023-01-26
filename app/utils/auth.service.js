@@ -7,7 +7,7 @@ const authService = () => {
   const issue_RefreshToken = payload => jwt.sign(payload, secret, { expiresIn: 86400 });
   const verify_Refreshoken = (token, cb) => jwt.verify(token, secret, {}, cb);
   
-  const issue_AccessToken = payload => jwt.sign(payload, secret2, { expiresIn: 7200 });
+  const issue_AccessToken = payload => jwt.sign(payload, secret2, { expiresIn: 21600 });
   const verify_AccessToken = (token, cb) => jwt.verify(token, secret2, {}, cb);
 
   const attachCookiesToResponse = ({ res, token }) => {

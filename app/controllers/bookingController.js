@@ -2,6 +2,7 @@ const db = require("../../models");
 const User = db.User;
 const Vehicle = db.Vehicle;
 const Booking = db.Booking;
+const Rating = db.Rating;
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async')
 const CustomError = require("../utils/customErrors.js");
@@ -20,15 +21,27 @@ const bookride = asyncWrapper(async (req, res, next) => {
         const vehicle = await Vehicle.findOne({ where: { vehicle_id: vehicleId } });
         const Hostuser = await vehicle.user_id;
         const rate = await vehicle.vehiclerate;
+        const vehiclepickup = await vehicle.vehicleLocation;
         if (!vehicle) {
             return next(new CustomError.BadRequestError(!Hostuser ? `No vehicle matches found ` : `No vehicle matches found for host`));
         }
-        // if (vehicle.vehicleStatus === "UNAVAILABLE" || vehicle.isverified === "false" ) {
-        //     return next(new CustomError.BadRequestError("Vehicle is not available for booking"));
-        // }
+        if (vehicle.vehicleStatus === "UNAVAILABLE" || vehicle.isverified === false || vehicle.isbooked === true ) {
+            return next(new CustomError.BadRequestError("Vehicle is not available for booking"));
+        }
         if (Hostuser === userId) {
             return next(new CustomError.BadRequestError("You cannot book your own vehicle"));
         }
+
+        const bookdetails = {
+            startDate,
+            endDate,
+            fromLocation,
+            toLocation,
+            rate,
+            vehiclepickup
+        }
+
+
         // calculate booking duration
         const bookingDuration = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
         if (bookingDuration < 1) {
@@ -40,6 +53,8 @@ const bookride = asyncWrapper(async (req, res, next) => {
 
         // generate payment reference
         const paymentReference = `TAXIMANIA_${Math.floor(Math.random() * 1000000000) + 1}_${Date.now}`;
+
+
 
         const booking = await Booking.create({
             vehicle_id: vehicleId,
@@ -53,6 +68,11 @@ const bookride = asyncWrapper(async (req, res, next) => {
             bookingAmount: calculatedBookingAmount,
             paymentReference
         }, { transaction: t });
+        // update vehicle status to unavailable
+        await vehicle.isbooked === true;
+        await vehicle.vehicleStatus === "UNAVAILABLE";
+        await vehicle.save({ transaction: t });
+
         if (!booking) {
             return next(new CustomError.BadRequestError("Error booking vehicle"));
         }
@@ -156,12 +176,44 @@ const getbooking = asyncWrapper(async (req, res, next) => {
     });
 });
 
+const rateride = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const { bookingId } = req.params;  
+        const { vehicleId, rating, comment } = req.body;
+        const booking = await Booking.findOne({ where: { booking_id: bookingId } });
+        const vehicle = await Vehicle.findOne({ where: { vehicle_id: vehicleId } });
+
+        if (booking.vehicle_id !== vehicleId) {
+            return next(new CustomError.BadRequestError("Vehicle does not match booking"));
+        }
+
+        if (!booking) {
+            return next(new CustomError.BadRequestError(Booking.hostApproval !== "Approved" ? "Booking has not been approved by Host" : "No active booking found for this vehicle"));
+        }
+        const ratingTable = await Rating.create({ booking_id: bookingId, rating, comment }, { transaction: t });
+
+        const totalRatingratio = vehicle.rating + ratingTable.rating
+        const totalRating = totalRatingratio / 2;
+        await Vehicle.update({ rating: totalRating }, { where: { vehicle_id: vehicleId } }, { transaction: t });
+
+        res.status(200).json({
+            success: 'true',
+            message: "Ride review submitted successfully",
+        });
+    });
+});
+
+
+
+
+
 
 module.exports = {
     bookride,
     cancelbooking,
     approvebooking,
-    getbooking
+    getbooking,
+    rateride
 }
 
         

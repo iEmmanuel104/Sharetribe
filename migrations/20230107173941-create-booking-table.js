@@ -2,8 +2,8 @@
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  up: (queryInterface, Sequelize) => {
-    return queryInterface.createTable('booking', {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('booking', {
       bookingId: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
@@ -23,10 +23,6 @@ module.exports = {
         allowNull: false
       },
       fromLocation: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      toLocation: {
         type: Sequelize.STRING,
         allowNull: false
       },
@@ -52,7 +48,8 @@ module.exports = {
       }
     });
   },
-  down: (queryInterface, Sequelize) => {
-    return queryInterface.dropTable('booking');
+  
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.dropTable('booking');
   }
 };

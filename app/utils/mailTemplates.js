@@ -45,6 +45,16 @@ const vehicleRegristrationMail = async (email, name, vehicleNumber ) => {
     return await sendMail(mail_data);
 }
 
+const verifiedvehicleMail = async (email, name, vehicleNumber ) => {
+    const mail_data = {
+        email: email,
+        title: "TAXIMANIA Vehicle Verification",
+        message: `Hi ${name},\n\nYour vehicle with number plate ${vehicleNumber} has been verified successfully\n\n You can now start receiving bookings once you make your vehicle available\n\nRegards,\nTAXIMANIA Team`,
+    };
+    return await sendMail(mail_data);
+}
+
+
 
 
 
@@ -56,5 +66,6 @@ module.exports = {
     sendSuperAdminRequestMail,
     sendforgotPasswordMail,
     userVerificationMail,
-    vehicleRegristrationMail
+    vehicleRegristrationMail,
+    verifiedvehicleMail
 };

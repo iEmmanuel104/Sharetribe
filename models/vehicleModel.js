@@ -75,7 +75,7 @@ module.exports = (sequelize, DataTypes) => {
         vehicleLocation: {
             type: DataTypes.STRING,
             allowNull: false
-        },        
+        },          
         vehicleImages: {
             type: DataTypes.ARRAY(DataTypes.STRING),
             allowNull: false
@@ -84,7 +84,22 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
             allowNull: false
-        }
+        },
+        isbooked: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
+        rentperiod: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 1
+        },
+        rating: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0
+        },
     }, {
         tableName: 'vehicle',
         underscored: true

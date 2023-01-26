@@ -65,13 +65,20 @@ module.exports = (sequelize, DataTypes) => {
     Booking.associate = (models) => {
         Booking.belongsTo(models.User, {
             foreignKey: 'user_id',
-            onDelete: 'CASCADE'
+            onDelete: 'CASCADE',
+            onUpdate : 'CASCADE'
         });
         Booking.belongsTo(models.Vehicle, {
             foreignKey: 'vehicle_id',
             onDelete: 'CASCADE',
             onUpdate : 'CASCADE'
         });
+        Booking.hasOne(models.Rating, {
+            foreignKey: 'booking_id',
+            onDelete: 'CASCADE',
+            onUpdate : 'CASCADE'
+        });
+
     }
     return Booking;
 };
