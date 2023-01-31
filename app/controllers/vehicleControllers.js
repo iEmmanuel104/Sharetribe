@@ -1,6 +1,7 @@
 const db = require("../../models");
 const User = db.User;
 const Vehicle = db.Vehicle;
+const UserData = db.UserData;                                                                   
 const Booking = db.Booking;
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async')
@@ -21,6 +22,7 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
         // const { } = req.files;
         // const filepath = req.files.image.tempFilePath;
         const user = await User.findOne({ where: { user_id: userId } });
+        const userData = await UserData.findOne({ where: { user_id: userId } });
         const vehicleExist = await Vehicle.findOne({ where: { 
             vehicle_plate_number : vehiclePlateNumber, 
             vehicle_id_number: vehicleIdNumber 
@@ -28,6 +30,12 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
         if (!user) {
             return next(new CustomError.BadRequestError(`No user with id : ${userId}`));
         }
+        // check userdata if user is verified
+        if (!userData) {
+            return next(new CustomError.BadRequestError(userData.verifyStatus !== 'Verified' ? " Please complete user verification before registering a vehicle" : "No user data found"));
+        }
+
+
         if (!req.files) {
             return next(new CustomError.BadRequestError("No image uploaded please upload an image"));
         }
@@ -42,7 +50,12 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
         for (let i = 0; i < req.files.length; i++) {
             var localfilepath = req.files[i].path;
             var originalname = req.files[i].originalname;
-            var uploadresult = await uploadtocloudinary(localfilepath, originalname);
+            var details = {
+                user: user.user_id,
+                name: originalname,
+                folder: "vehicles"
+            }
+            var uploadresult = await uploadtocloudinary(localfilepath, details);
             // check for success response
             if (uploadresult.message === 'error') {
                 return next(new CustomError.BadRequestError(uploadresult.message));
@@ -78,6 +91,8 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
         if (!vehicle) {
             return next(new CustomError.BadRequestError("Error creating vehicle"));
         }
+        // MAKE user HOST
+        await User.update({ role : 'HOST' }, { where: { user_id: userId } }, { transaction: t });
         // send mail to user
         await vehicleRegristrationMail(user.email, user.fullName, vehicle.vehiclePlateNumber);
 
@@ -108,7 +123,7 @@ const getuserVehicles = asyncWrapper(async (req, res, next) => {
 const updateVehicle = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { userId, vehicleId } = req.params;
-        const { vehicleStatus, vehicleDescription, vehicleLocation,  } = req.body;
+        const { vehicleStatus, vehicleDescription, vehicleLocation, rentperiod, vehiclerate } = req.body;
 
         const vehicle = await Vehicle.findOne({ where: { vehicle_id: vehicleId } });
         if (!vehicle) return next(new CustomError.BadRequestError("Oops! No vehicle found"));
@@ -120,6 +135,8 @@ const updateVehicle = asyncWrapper(async (req, res, next) => {
                 vehicleStatus,
                 vehicleDescription,
                 vehicleLocation,
+                rentperiod,
+                vehiclerate
             }, { where: { user_id: userId, vehicle_id: vehicleId } }, { transaction: t });
             res.status(200).json({ message: 'success', updatevehicle });
         }

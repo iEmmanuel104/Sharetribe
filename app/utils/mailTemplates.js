@@ -54,6 +54,23 @@ const verifiedvehicleMail = async (email, name, vehicleNumber ) => {
     return await sendMail(mail_data);
 }
 
+const senduserbookingconfirmationMail = async (email, name, vehiclename ) => {
+    const mail_data = {
+        email: email,
+        title: "TAXIMANIA Booking Confirmation",
+        message: `Hi ${name},\n\nYour booking order for vehicle ${vehiclename} has been confirmed\n\nRegards,\nTAXIMANIA Team`,
+    };
+    return await sendMail(mail_data);
+}
+
+const sendhostbookingconfirmationMail = async (email, name, vehiclename, plateno ) => {
+    const mail_data = {
+        email: email,
+        title: "TAXIMANIA Booking Confirmation",
+        message: `Hi ${name},\n\nYou have a new booking order for your vehicle ${vehiclename} with number plate ${plateno}\n\nRegards,\nTAXIMANIA Team`,
+    };
+    return await sendMail(mail_data);
+}
 
 
 
@@ -67,5 +84,7 @@ module.exports = {
     sendforgotPasswordMail,
     userVerificationMail,
     vehicleRegristrationMail,
-    verifiedvehicleMail
+    verifiedvehicleMail,
+    senduserbookingconfirmationMail,
+    sendhostbookingconfirmationMail
 };

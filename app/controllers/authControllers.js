@@ -1,6 +1,7 @@
 const db = require("../../models");
 const User = db.User;
 const Blacklist = db.Blacklist;
+const UserData = db.UserData;
 require('dotenv').config();
 const authService = require("../utils/auth.service.js");
 const asyncWrapper = require('../middlewares/async')
@@ -179,6 +180,31 @@ const passwordreset = asyncWrapper(async (req, res, next) => {
     })
 })
 
+const passwordUpdate = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {  
+        const { password, password1, password2 } = req.body;
+        const { userId} = req.params;
+        const user = await User.findOne({ where: { user_id: userId } });
+        if (!user) {
+            return next(new CustomError.BadRequestError("User does not exist"));
+        }
+        if (password1 !== password2) {
+            return next(new CustomError.BadRequestError("Passwords do not match"));
+        }
+        // compare password with hashed password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return next(new CustomError.BadRequestError("Invalid password"));
+        }
+        const hashedPassword = await bcrypt.hash(password1, 10);
+        user.password = hashedPassword;
+        console.log(password1)
+        await user.save();
+        res.status(200).json({ message: "Password updated successfully" });
+    })
+})
+
+
 const logout = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { email, ACCESS_TOKEN, REFRESH_TOKEN } = req.body;
@@ -234,9 +260,9 @@ const validateToken = async (req, res, next) => {
 // HOST/USER AUTHENTICATION
 const registerHost = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { firstname, lastname, username, email, password, address, phone, agedeclaration,terms } = req.body;
+        const { firstname, lastname, username, email, password, address, phone, agedeclaration,terms, city, state, country } = req.body;
         // VALIDATE USER INPUT
-        if (!username || !email || !password || !address || !phone || !agedeclaration || !terms || !firstname || !lastname) {
+        if (!username || !email || !password || !address || !phone || !agedeclaration || !terms || !firstname || !lastname || !city || !state || !country) {
             return next(new CustomError.BadRequestError("Please fill in all fields"));
         }
         if (agedeclaration !== "on") {
@@ -273,11 +299,16 @@ const registerHost = asyncWrapper(async (req, res, next) => {
         const user = await User.create({
             username, fullName, email, password, address, phone, agedeclaration, terms, verification_code
         }, { transaction: t });
+
+        const userdata = await UserData.create({
+            city, state, country, user_id: user.user_id
+        }, { transaction: t }); 
         // SEND VERIFICATION CODE TO EMAIL
         await userVerificationMail(user.email, user.fullName, user.verification_code);
         res.status(200).json({
             message: "Welcome to Taximania, please check your email for your verification code",
             user,
+            userdata
         });
     })
 })
@@ -292,7 +323,7 @@ const verifyHost = asyncWrapper(async (req, res, next) => {
         if (user.verification_code !== verification_code) {
             return next(new CustomError.BadRequestError("Invalid verification code"));
         }
-        const updated = await User.update({ verification_code: null, status: "ACTIVE", role: "HOST" }, { where: { email } }, { transaction: t });
+        const updated = await User.update({ verification_code: null, status: "ACTIVE" }, { where: { email } }, { transaction: t });
         if (updated) {
             res.status(200).json({ message: "Account verified successfully" });
         }
@@ -341,9 +372,6 @@ const loginHost = asyncWrapper(async (req, res, next) => {
         const user = await User.findOne({ where: { email } });
         if (!user) {
             return next(new CustomError.BadRequestError("Email does not exist"));
-        }
-        if (user.role !== "HOST") {
-            return next(new CustomError.BadRequestError("Please verify your account"));
         }
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
         if (!isPasswordCorrect) {
@@ -399,10 +427,12 @@ module.exports = {
     loginAdmin,
     forgotPassword,
     passwordreset,
+    passwordUpdate,
     logout,
     validateToken,
     registerHost,
     verifyHost,
     resendverificationcode,
     loginHost,
+
 };

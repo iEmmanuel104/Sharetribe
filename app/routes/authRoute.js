@@ -8,6 +8,7 @@ const {
     validateToken,
     forgotPassword,
     passwordreset,
+    passwordUpdate,
     logout,
     registerHost,
     verifyHost,
@@ -23,6 +24,7 @@ router.post('/admin/login', loginAdmin);
 router.post('/validate', validateToken);
 router.post('/forgotpassword', forgotPassword);
 router.post('/passwordreset',permissions("ADMIN"), passwordreset);
+router.post('/passwordupdate/:userId',permissions("GUEST HOST ADMIN"), passwordUpdate);
 router.post('/logout', logout);
 router.post('/signup', registerHost);
 router.post('/verify', verifyHost );

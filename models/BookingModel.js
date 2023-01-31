@@ -62,6 +62,7 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'booking',
         underscored: true        
     });
+    // bookings associations
     Booking.associate = (models) => {
         Booking.belongsTo(models.User, {
             foreignKey: 'user_id',
@@ -74,6 +75,11 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate : 'CASCADE'
         });
         Booking.hasOne(models.Rating, {
+            foreignKey: 'booking_id',
+            onDelete: 'CASCADE',
+            onUpdate : 'CASCADE'
+        });
+        Booking.hasOne(models.Paymentref, {
             foreignKey: 'booking_id',
             onDelete: 'CASCADE',
             onUpdate : 'CASCADE'

@@ -1,5 +1,4 @@
-const CustomError = require("../utils/customErrors.js");
-
+const crypto = require('crypto');
 const calculateBookingAmount = (bookdetails) => {
 
     const { startDate, endDate, fromLocation, toLocation, rate, vehiclepickup } = bookdetails;
@@ -12,22 +11,28 @@ const calculateBookingAmount = (bookdetails) => {
     } else {
         percent = 1;
     }
-    
 
-    const bookingDuration = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
-
-    if (bookingDuration < 1) {
-        return next(new CustomError.BadRequestError("Booking duration cannot be less than 1 day"));
-    }
+    //calculate booking duration in hours 
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffHrs = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     //  calculate booking amount
-    const calculatedBookingAmount = bookingDuration * rate * percent;
+    const calculatedBookingAmount = diffHrs * rate * percent;
+    // reduce to 2 decimal places
+    const bookingAmount = calculatedBookingAmount.toFixed(2);
 
     // generate payment reference
-    const paymentReference = `TAXIMANIA_${Math.floor(Math.random() * 1000000000) + 1}_${Date.now}`;
+    const paymentReference = `TAXIMANIA_${crypto.randomBytes(8).toString('hex')}`;
 
-    return calculatedBookingAmount;
+    const data = {
+        bookingDuration: diffHrs,
+        bookingAmount,
+        paymentReference
+    };
 
+    return data;
 }
 
 module.exports = calculateBookingAmount;

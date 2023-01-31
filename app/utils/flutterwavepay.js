@@ -1,10 +1,11 @@
-// const got = require("got");
-// import got from "got";
+const axios = require('axios');
+require('dotenv').config();
 
-const FlutterwavePay = async (paydetails) => {
+const FlutterwavePay = (paydetails) => {
+    console.log(process.env.FLW_SECRET_KEY);
 
-    try {
-        const response = await got.post("https://api.flutterwave.com/v3/payments", {
+    return axios
+        .post("https://api.flutterwave.com/v3/payments", {
             headers: {
                 Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`
             },
@@ -12,16 +13,16 @@ const FlutterwavePay = async (paydetails) => {
                 tx_ref: paydetails.tx_ref,
                 amount: paydetails.amount,
                 currency: "NGN",
-                redirect_url: paydetails.redirect_url,
+                redirect_url: process.env.FLW_REDIRECT_URL,
                 meta: {
-                    vehicle_id: 23,
+                    vehicle_id: paydetails.vehicle_id,
                     HostUser: paydetails.HostUser,
                     BookingId: paydetails.BookingId,
                     user_id: paydetails.user_id,
                 },
                 customer: {
                     email: paydetails.email,
-                    phonenumber: paydetails.phonenumber,
+                    phonenumber: paydetails.phone,
                     name: paydetails.fullname
                 },
                 customizations: {
@@ -29,12 +30,15 @@ const FlutterwavePay = async (paydetails) => {
                     logo: "https://res.cloudinary.com/drc6omjqc/image/upload/v1673672919/uploads/logo_rmflbu.png"
                 }
             }
-        }).json();
-        console.log(response);
-    } catch (err) {
-        console.log(err.code);
-        console.log(err.response.body);
-    }
-}
+        })
+        .then((response) => {
+            console.log(response.response.data);
+            return response;
+        })
+        .catch((error) => {
+            console.log('this is error starts',error.response['data']);
+            return error;
+        });
+};
 
 module.exports = FlutterwavePay;

@@ -119,6 +119,16 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate : 'CASCADE'
         });
+        User.hasOne(models.AccountDetails, {
+            foreignKey: 'user_id',
+            onDelete: 'CASCADE',
+            onUpdate : 'CASCADE'
+        });
+        User.hasOne(models.UserData, {
+            foreignKey: 'user_id',
+            onDelete: 'CASCADE',
+            onUpdate : 'CASCADE'
+        });
     };
 
 
