@@ -60,7 +60,19 @@ module.exports = (sequelize, DataTypes) => {
         },
     }, {
         tableName: 'booking',
-        underscored: true        
+        underscored: true,
+        hooks: {
+                // set booking status to approved if user and host approves
+                beforeUpdate: async (booking, options) => {
+                    if (booking.userApproval === "Approved" && booking.hostApproval === "Approved") {
+                        booking.bookingStatus = "Approved";
+                    }
+                    if (booking.userApproval === "Cancelled" || booking.hostApproval === "Cancelled") {
+                        booking.bookingStatus = "Cancelled";
+                    }
+                }
+                // capita
+            }
     });
     // bookings associations
     Booking.associate = (models) => {

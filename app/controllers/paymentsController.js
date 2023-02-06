@@ -151,6 +151,8 @@ const verifyflutterwavepayment = asyncWrapper(async (req, res, next) => {
     const {userId} = req.params;
     const booking = await Booking.findOne({ where: { paymentReference : tx_ref } });
     const user = await User.findOne({ where: { user_id: userId } });
+    const bookingId = booking.booking_id;
+    console.log('-------------------------------------',booking)
 
     if (!user) {
         return next(new CustomError.NotFoundError("oops! Unknow identity"));
@@ -172,7 +174,7 @@ const verifyflutterwavepayment = asyncWrapper(async (req, res, next) => {
                     where: { paymentReference : tx_ref }
                 }, { transaction: t });
 
-                await payref.create({ flwRef : transaction_id }, { transaction: t });
+                await Paymentref.create({ flwRef : transaction_id }, { transaction: t });
 
                 const vehicle = await Vehicle.findOne({ where: { vehicle_id: booking.vehicle_id } }); 
                     // update vehicle availability
@@ -194,6 +196,7 @@ const verifyflutterwavepayment = asyncWrapper(async (req, res, next) => {
                 return res.status(200).json({
                     status: 'success',
                     message: 'Payment verified successfully',
+                    booking
                 });
             });
         } else {

@@ -23,6 +23,11 @@ const registerAdmin = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { fullName,username, email, password } = req.body;
 
+        if (!fullName || !username || !email || !password) {
+            return next(new CustomError.BadRequestError("Please fill all fields"));
+        }
+        console.log (req.body)
+
         // generate code for verification
         let usercode = Math.floor(100000 + Math.random() * 90000);
         let admincode = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
@@ -37,6 +42,7 @@ const registerAdmin = asyncWrapper(async (req, res, next) => {
         if (usernameExist) {
             return next(new CustomError.BadRequestError("Username already exists"));
         }
+        console.log(password)
         const user = await User.create({
             fullName,
             username,
@@ -104,39 +110,31 @@ const loginAdmin = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { email, password } = req.body;
         const user = await User.findOne({ where: { email } });
-
         if (!user) {
             return next(new CustomError.BadRequestError("Email does not exist"));
         }
         if (user.role !== "ADMIN") {
-            return next(new CustomError.BadRequestError("User is not an admin"));    
+            return next(new CustomError.BadRequestError("you are not an admin"));
         }
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return next(new CustomError.BadRequestError("Invalid password"));    
+        console.log(user.password)
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
+        if (!isPasswordCorrect) {
+            return next(new CustomError.BadRequestError("Invalid credentials"));
         }
-        const REFRESH_TOKEN = await authService().issue_RefreshToken({
+
+        const loadUser = {
             id: user.id,
             email: user.email,
             role: user.role,
-            timestamps: Date.now(),
-        });
-        const ACCESS_TOKEN = await authService().issue_AccessToken({
-            id: user.id,
-            email: user.email,
-            role: user.role,
-            rfshtkn: REFRESH_TOKEN,
-            timestamps: Date.now(),
-        });
-        const userData = {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-        };      
+        }
+
+        // generate tokens
+        const REFRESH_TOKEN = authService().issue_AdminRefreshToken(loadUser);
+        const ACCESS_TOKEN = authService().issue_AdminAccessToken(loadUser);
+
         res.status(200).json({
-            message: "Admin logged in successfully",
-            userData,
+            message: "Welcome to Taximania",
+            user,
             REFRESH_TOKEN,
             ACCESS_TOKEN,
         });
@@ -383,16 +381,10 @@ const loginHost = asyncWrapper(async (req, res, next) => {
             email: user.email,
             role: user.role,
         }
-        // store user in session
-        req.session.user = user;
         
         // generate tokens
         const REFRESH_TOKEN =  authService().issue_RefreshToken( loadUser );
         const ACCESS_TOKEN =  authService().issue_AccessToken( loadUser ); 
-
-        // attach tokens to cookie
-        authService().attachCookiesToResponse( res, REFRESH_TOKEN);
-        authService().attachCookiesToResponse( res, ACCESS_TOKEN);
 
         res.status(200).json({
             message: "Welcome to Taximania",

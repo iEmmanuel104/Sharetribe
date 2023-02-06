@@ -31,31 +31,60 @@ const uploadtocloudinary = (filepath, details) => {
     }
 };
 
-const uploadresizeToCloudinary = async (filepath, details) => {
-    try {
-        const image = sharp(filepath);
-        const resizedImage = await image.resize({ width: 200, height: 200 }).toBuffer();
-        const options = {
-            use_filename: true,
-            folder: `Taximania/${details.user}/${details.folder}`,
-            public_id: details.name,
-        };
 
-        const result = await cloudinary.uploader.upload_stream(options, (error, result) => {
+
+// const uploadresizeToCloudinary = async (filepath, details) => {
+//     const image = sharp(filepath);
+//     const resizedImage = await image.resize({ width: 200, height: 200 }).toBuffer();
+//     const options = {
+//         use_filename: true,
+//         folder: `Taximania/${details.user}/${details.folder}`,
+//         public_id: details.name,
+//     };
+//     let reload;
+
+//     const wait =  await new Promise((resolve, reject) => {
+//             cloudinary.uploader.upload_stream(options, (error, result) => {
+//                 if (error) {
+//                     console.log(error);
+//                     fs.unlinkSync(filepath);
+//                     return { message: 'error', error: error };
+//                 }
+//                 fs.unlinkSync(filepath);
+//                  reload =  { message: 'success', url: result.secure_url };
+//                 console.log("this is reload",reload);
+//                 resolve(reload);
+//             }).end(resizedImage);
+//         });
+
+//     console.log ("this is reload from cloudinary file",wait);
+
+//     return wait;
+
+// };
+
+const uploadresizeToCloudinary = async (filepath, details) => {
+    const image = sharp(filepath);
+    const resizedImage = await image.resize({ width: 200, height: 200 }).toBuffer();
+    const options = {
+        use_filename: true,
+        folder: `Taximania/${details.user}/${details.folder}`,
+        public_id: details.name,
+    };
+
+    return new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(options, (error, result) => {
             if (error) {
-                throw new Error(error);
+                console.log(error);
+                fs.unlinkSync(filepath);
+                reject({ message: 'error', error: error });
             }
             fs.unlinkSync(filepath);
-            return result;
+            resolve({ message: 'success', url: result.secure_url });
         }).end(resizedImage);
-
-        return { message: 'success', url: result.secure_url };
-    } catch (error) {
-        console.log(error);
-        fs.unlinkSync(filepath);
-        return { message: 'error', error: error };
-    }
+    });
 };
+
 
 
 module.exports = {

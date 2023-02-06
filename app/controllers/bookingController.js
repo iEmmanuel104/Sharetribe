@@ -20,6 +20,12 @@ const bookride = asyncWrapper(async (req, res, next) => {
         const { startDate, endDate, fromLocation, toLocation } = req.body;
         const { userId, vehicleId } = req.params;
 
+        const userData = await UserData.findOne({ where: { user_id: userId } });
+        // check userdata if user is verified
+        if (!userData) {
+            return next(new CustomError.BadRequestError(userData.verifyStatus !== 'Verified' ? " Please complete user verification before registering a vehicle" : "No user data found"));
+        }
+
         const vehicle = await Vehicle.findOne({ where: { vehicle_id: vehicleId } });
         const Hostuser = await vehicle.user_id;
         const rate = await vehicle.vehiclerate;
@@ -66,10 +72,7 @@ const bookride = asyncWrapper(async (req, res, next) => {
             bookingAmount: `${data.bookingAmount}`,
             paymentReference: `${data.paymentReference}`,
         }, { transaction: t });
-        // update vehicle status to unavailable
-        await vehicle.isbooked === true;
-        await vehicle.vehicleStatus === "UNAVAILABLE";
-        await vehicle.save({ transaction: t });
+
 
         if (!booking) {
             return next(new CustomError.BadRequestError("Error booking vehicle"));
@@ -84,20 +87,26 @@ const bookride = asyncWrapper(async (req, res, next) => {
 
 const cancelbooking = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { bookingId } = req.params;
-        const { userId } = req.body;
+        const { bookingId, userId } = req.params;
         const booking = await Booking.findOne({ where: { booking_id: bookingId } });
         if (!booking) return next(new CustomError.BadRequestError("No booking found"));
 
-        if (booking.userApproval === "Approved" || booking.hostApproval === "Approved") return next(new CustomError.BadRequestError("Booking already approved"));
+        let thisuser = booking.user_id === userId ? "Host" : "user";
+
+        if (booking.userApproval === "Approved" || booking.hostApproval === "Approved") return next(new CustomError.BadRequestError("Booking already approved by " + thisuser));
 
         if (booking.bookingStatus === "Cancelled") return next(new CustomError.BadRequestError(booking.bookingStatus === "Approved" ? "Booking already completed" : "Booking already cancelled"));
 
-        if (booking.paymentStatus === "Paid") return next(new CustomError.BadRequestError("Booking already approved"));
+        if (booking.paymentStatus === "Paid" && booking.user_id !== userId) return next(new CustomError.BadRequestError("Booking already approved and paid for"));
 
         if (booking.user_id !== userId  && booking.hostUser !== userId) return next(new CustomError.BadRequestError("You are not authorized to cancel this booking"));
 
-        const cancelledbooking = await Booking.update({ bookingStatus: "cancelled" }, { where: { booking_id: bookingId } }, { transaction: t });
+        const vehicle = await Vehicle.findOne({ where: { vehicle_id: booking.vehicle_id } });
+        if (!vehicle) return next(new CustomError.BadRequestError("No vehicle found"));
+        // if vehicle isbooked is true prevent cancellation
+        if (vehicle.isbooked === true) return next(new CustomError.BadRequestError("Vehicle is booked and cannot be cancelled"));
+
+        const cancelledbooking = await Booking.update({ bookingStatus: "Cancelled" }, { where: { booking_id: bookingId } }, { transaction: t });
         if (!cancelledbooking) return next(new CustomError.BadRequestError("Error cancelling booking"));
   
         res.status(200).json({
@@ -118,7 +127,7 @@ const approvebooking = asyncWrapper(async (req, res, next) => {
             return next(new CustomError.BadRequestError("No booking found"));
         }
         if (booking.bookingStatus === "cancelled") {
-            return next(new CustomError.BadRequestError(booking.bookingStatus === "approved" ? "Booking already completed" : "Booking already cancelled"));
+            return next(new CustomError.BadRequestError(booking.bookingStatus === "Approved" ? "Booking already completed" : "Booking already cancelled"));
         }
         if (booking.paymentStatus === "paid") {
             return next(new CustomError.BadRequestError("Booking already approved"));
@@ -126,22 +135,33 @@ const approvebooking = asyncWrapper(async (req, res, next) => {
 
         // check if request is from user 
         if (booking.user_id === userId) {
-            if (booking.userApproval === "Approved") {
-                return next(new CustomError.BadRequestError("Booking already completed"));
+            if (booking.hostApproval !== "Approved") {
+                return next(new CustomError.BadRequestError("Booking has not been approved by the Vehicle Host"));
             }
+            if (booking.userApproval === "Approved") {
+                return next(new CustomError.BadRequestError("Booking already approved"))
+            }
+            const vehicle = await Vehicle.findOne({ where: { vehicle_id: booking.vehicle_id } });
+            //  set isbooked to false
+            vehicle.isbooked = false;
+            await vehicle.save({ transaction: t });            
+            
             booking.userApproval = "Approved";
             await booking.save({ transaction: t });
             res.status(200).json({
                 success: 'true',
-                message: "Booking approved successfully",
+                message: "Booking approved successfully please drop a review",
                 booking
             });
         } else if (booking.hostUser === userId) {
             if (booking.hostApproval === "Approved") {
-                return next(new CustomError.BadRequestError(Booking.userApproval !== "Approved" ? "Booking has not been approved by User" : "Booking already completed"));
+                return next(new CustomError.BadRequestError(" Booking already approved and completed"));
             }
+
+
             // update host approval
             booking.hostApproval = "Approved";
+
             await booking.save({ transaction: t });
             res.status(200).json({
                 success: 'true',

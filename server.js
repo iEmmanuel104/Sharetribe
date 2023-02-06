@@ -82,12 +82,14 @@ const host = require('./app/routes/hostRoute.js');
 const vehicle = require('./app/routes/vehicleRoute.js');
 const bookings = require('./app/routes/bookingsRoute.js');
 const payments = require('./app/routes/paymentsRoute.js');
+const adminauth = require('./app/routes/admin/adminauthRoute.js');
 
 app.use('/api/v1/auth', authRoute);
 app.use('/api/v1/host', host);
 app.use('/api/v1/vehicle', vehicle);
 app.use('/api/v1/bookings', bookings);
 app.use('/api/v1/payments', payments);
+app.use('/api/v1/admin_auth', adminauth);
 
 
 app.use(notFoundMiddleware);

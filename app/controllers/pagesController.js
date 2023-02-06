@@ -11,15 +11,35 @@ const uploadtocloudinary = require('../middlewares/cloudinary').uploadtocloudina
 const uploadresizeToCloudinary = require('../middlewares/cloudinary').uploadresizeToCloudinary;
 const makepayment = require('../utils/makepayment.js')
 const Op = require("sequelize").Op;
-const path = require('path');
-const Blacklist = db.Blacklist;
+const sharp = require('sharp');
 require('dotenv').config();
-const authService = require("../utils/auth.service.js");
-const { sendMail } = require("../utils/sendMail.js");
-const generatePassword = require('../utils/StringGenerator.js');
-const bcrypt = require('bcryptjs');
+
 const { sequelize } = require("../../models");
-const vehicleModel = require("../../models/vehicleModel");
+
+async function getBookingsWithVehicleName(bookings, userId) {
+    const vehiclebookedid = bookings.map(booking => booking.vehicle_id);
+    await Promise.all(vehiclebookedid.map(async (vehiclebid) => {
+        let vehicle = await Vehicle.findOne({ where: { vehicle_id: vehiclebid } });
+        let vehicleJson = vehicle.toJSON();
+        let vehicleName = vehicleJson.vehicleMake + " " + vehicleJson.vehicleModel;
+        let vehiclebooked = bookings.filter(booking => booking.vehicle_id === vehiclebid);
+        console.log('---------------------------------------------------')
+        // console.log(vehiclebooked)        
+        vehiclebooked.forEach((booking) => {
+            booking.vehicleName = vehicleName;
+            console.log(booking.vehicleName)
+            booking.thisUser = booking.user_id === userId ? "user" : booking.hostUser === userId ? "host" : "";
+            console.log(booking.thisUser)
+        });
+        console.log('---------------------------------------------------')
+        // console.log(booking)
+    }));
+
+    bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.updatedAt));
+
+    return bookings;
+}
+
 
 const loadDashboard = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -44,7 +64,7 @@ const profiledata = asyncWrapper(async (req, res, next) => {
             where: { user_id: userId },
             include: [{
                 model: Vehicle,
-                attributes: ['vehicleMake', 'vehicleModel', 'vehiclePlateNumber', 'vehicleStatus', 'isverified', 'vehicle_id', 'vehicleLocation', 'vehicleDescription',],
+                attributes: ['vehicleMake', 'vehicleModel', 'vehiclePlateNumber', 'vehicleStatus', 'isverified', 'vehicle_id', 'vehicleLocation', 'vehicleDescription','vehiclerate', 'rentperiod'],
                 required: false,
                 raw: true,
             }, {
@@ -55,12 +75,12 @@ const profiledata = asyncWrapper(async (req, res, next) => {
                 required: false,
             }, {
                 model: AccountDetails,
-                attributes: ['accountNumber', 'bankName'],
+                attributes: ['accountNumber', 'bankName', 'accountName'],
                 required: false,
                 raw: true,
             }, {
                 model: UserData,
-                attributes: ['city', 'state', 'country', 'verifyStatus'],
+                attributes: ['city', 'state', 'country', 'verifyStatus', 'userImage'],
                 required: false,
                 raw: true,
             }]
@@ -69,6 +89,7 @@ const profiledata = asyncWrapper(async (req, res, next) => {
             return next(new CustomError.BadRequestError("User not found"));
         }
         const userJson = user.toJSON();
+
         // check if user is host
         if (userJson.role !== 'HOST') {
             // remove account details
@@ -86,14 +107,15 @@ const profiledata = asyncWrapper(async (req, res, next) => {
         let bookings = userJson.Bookings;
         let accountDetails = userJson.AccountDetail;
         let userData = userJson.UserDatum;
-        console.log(userData)   
-        // return empty array if user data is null
-        if (!userData || !accountDetails || !bookings || !vehicles ||  !verifiedVehicles || !unverifiedVehicles ) {
-            userData = []; accountDetails = []; bookings = []; vehicles = []; verifiedVehicles = []; unverifiedVehicles = [];
-        }
-        console.log(accountDetails)
-        // if bookings is empty
+
         if (bookings.length === 0) {
+            let bookings = await Booking.findAll({
+                where: { hostUser: userId },
+                attributes: ['vehicle_id', 'startDate', 'endDate', 'bookingStatus', 'booking_id', 'fromLocation', 'toLocation', 'updatedAt', 'createdAt', 'paymentStatus', 'user_id', 'hostUser'],
+                order: [ ['updatedAt', 'DESC'] ],
+                raw: true,
+            });
+            bookings = await getBookingsWithVehicleName(bookings, userId);
             return res.status(200).json({
                 message: "success",
                 info,
@@ -103,31 +125,24 @@ const profiledata = asyncWrapper(async (req, res, next) => {
                 userData,
                 bookings,
             });
-        }
-        const vehiclebookedid = bookings.map(booking => booking.vehicle_id);
-        // get vehicle name for each vehiclebookedid
-        await Promise.all(vehiclebookedid.map(async (vehiclebid) => {
-            let vehicle = await Vehicle.findOne({ where: { vehicle_id: vehiclebid } });
-            let vehicleJson = vehicle.toJSON();
-            let vehicleName = vehicleJson.vehicleMake + " " + vehicleJson.vehicleModel;
-            let vehiclebooked = bookings.filter(booking => booking.vehicle_id === vehiclebid);
-            vehiclebooked.forEach((booking) => {
-                // add vehicleName as a new key to booking object
-                booking.dataValues.vehicleName = vehicleName;
-                booking.dataValues.thisUser = booking.user_id === userId ? "user" : booking.hostUser === userId ? "host" : "";
+        } else {
+            let bookings = await Booking.findAll({
+                where: { user_id: userId },
+                attributes: ['vehicle_id', 'startDate', 'endDate', 'bookingStatus', 'booking_id', 'fromLocation', 'toLocation', 'updatedAt', 'createdAt', 'paymentStatus', 'user_id', 'hostUser'],
+                order: [['updatedAt', 'DESC']],
+                raw: true,
+            });            
+            bookings = await getBookingsWithVehicleName(bookings, userId);      
+            res.status(200).json({
+                message: "success",
+                info,
+                verifiedVehicles,
+                unverifiedVehicles,
+                bookings,
+                accountDetails,
+                userData
             });
-        }));
-        // sort 
-        bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.updatedAt));        
-        res.status(200).json({
-            message: "success",
-            info,
-            verifiedVehicles,
-            unverifiedVehicles,
-            bookings,
-            accountDetails,
-            userData
-        });
+        }
 
 
     });
@@ -220,18 +235,33 @@ const ridedetailspageData = asyncWrapper(async (req, res, next) => {
         }
         const user = await User.findOne({
             where: { user_id: booking.user_id === userId ? booking.hostUser : booking.user_id },
-            attributes: ['fullName', 'phone']
+            attributes: ['fullName', 'phone'],
+            include: [{ 
+                model: UserData,
+                attributes: ['userImage']
+            }]
+
         });
+        
         let thisuser = booking.user_id === userId ? "user" : "host";
+        // remove userData from user object if bookingStatus is approved or cancelled
+        if (booking.bookingStatus === 'Approved' || booking.bookingStatus === 'Cancelled') {
+            delete user.dataValues.UserData;
+        }
+
+           
+
+        // console.log(user);
 
         const vehicle = await Vehicle.findOne({
             where: { vehicle_id: booking.vehicle_id },
-            attributes: ['vehicleMake', 'vehicleModel', 'vehiclePlateNumber', 'vehicleImages']
+            attributes: ['vehicleMake', 'vehicleModel', 'vehiclePlateNumber', 'vehicleImages'],
         });
         const vehicldata = {
             vehicleName: `${vehicle.vehicleMake} ${vehicle.vehicleModel}`,
             vehiclePlateNumber: vehicle.vehiclePlateNumber,
-            vehicleImage: vehicle.vehicleImage,
+            // get image that that has banner included in it name else get the first image
+            vehicleImage: vehicle.vehicleImages.find(image => image.includes('banner')) || vehicle.vehicleImages[0]
         }
         const bookingdata = {
             booking: booking,
@@ -249,7 +279,7 @@ const ridedetailspageData = asyncWrapper(async (req, res, next) => {
 const updateuserprofile = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { userId } = req.params;
-        const { username, phone, address, city, state, country } = req.body;
+        const { phone, address, city, state, country } = req.body;
         const user = await User.findOne({ where: { user_id: userId } });
         if (!user) {
             return next(new CustomError.BadRequestError("User not found"));
@@ -257,7 +287,8 @@ const updateuserprofile = asyncWrapper(async (req, res, next) => {
         const userisBooked = await Booking.findOne({
             where: {
                 [Op.or]: [{ user_id: userId }, { hostUser: userId }],
-                paymentStatus: 'Paid'
+                paymentStatus: 'Paid',
+                bookingStatus: 'Pending',
             },
         });
         if (userisBooked) {
@@ -266,11 +297,10 @@ const updateuserprofile = asyncWrapper(async (req, res, next) => {
 
         const vehicle = await Vehicle.findOne({ where: { user_id: userId, vehicleStatus: 'AVAILABLE' } });
         if (vehicle) {
-            return next(new CustomError.BadRequestError("You cannot update your profile while you have an available vehicle"));
+            return next(new CustomError.BadRequestError("Please deactivate all AVAILABLE vehicles before updating your profile"));
         }
 
         await User.update({
-            username,
             phone,
             address
         }, { where: { user_id: userId } }, { transaction: t });
@@ -287,7 +317,6 @@ const updateuserprofile = asyncWrapper(async (req, res, next) => {
         });
     });
 });
-
 
 const submitverificationDoc = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -369,7 +398,8 @@ const uploadprofileimage = asyncWrapper(async (req, res, next) => {
         const userisBooked = await Booking.findOne({
             where: {
                 [Op.or]: [{ user_id: userId }, { hostUser: userId }],
-                paymentStatus: 'Paid'
+                paymentStatus: 'Paid',
+                bookingStatus: 'Pending'
             },
         });
         if (userisBooked) {
@@ -382,13 +412,14 @@ const uploadprofileimage = asyncWrapper(async (req, res, next) => {
             folder: 'profile_images',
             name: `profile_image_${userId}`,
         }
+        const filepath = req.file.path;
+        
+        const uploadResult = await uploadresizeToCloudinary(filepath, details );
 
-
-        const imageBuffer = await resizeImage(req.file.path);
-        const uploadResult = await uploadresizeToCloudinary(imageBuffer, details );
+        console.log('upload result from controler', uploadResult);
 
         if (uploadResult.message === 'success') {
-            await userHasData.update({ profile_image: uploadResult.url }, { transaction: t });
+            await UserData.update({ userImage: uploadResult.url }, { where: { user_id: userId } }, { transaction: t });
             return res.status(200).json({
                 message: 'Profile image uploaded successfully',
                 data: uploadResult.url,

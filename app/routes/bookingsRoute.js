@@ -11,7 +11,7 @@ const {
 
 
 router.post('/bookride/:userId/:vehicleId', permissions("GUEST HOST"), bookride);
-router.post('/cancelbooking/:bookingId', permissions("GUEST HOST"), cancelbooking);
+router.post('/cancel/booking/:bookingId/:userId', cancelbooking);
 router.post('/approvebooking/:bookingId/:userId', approvebooking);
 router.get('/getbooking/:userId/:bookingId', permissions("GUEST HOST"), getbooking);
 router.post('/rateride/:bookingId', permissions("GUEST HOST"), rateride);

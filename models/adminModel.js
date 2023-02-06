@@ -88,13 +88,9 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true,
         hooks: {
             beforeCreate(user) {
+              console.log('schema',user.password)
                 user.password = bcrypt.hashSync(user.password, bcrypt.genSaltSync(10));
                 // user.username = user.username.toLowerCase();
-                user.role = user.role.toUpperCase();
-                user.status = user.status.toUpperCase();
-            },
-            beforeUpdate(user) {
-                user.password = bcrypt.hashSync(user.password, bcrypt.genSaltSync(10));
                 user.role = user.role.toUpperCase();
                 user.status = user.status.toUpperCase();
             }
