@@ -3,6 +3,7 @@ const User = db.User;
 const Vehicle = db.Vehicle;
 const Booking = db.Booking;
 const Rating = db.Rating;
+const UserData = db.UserData;
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async')
 const CustomError = require("../utils/customErrors.js");

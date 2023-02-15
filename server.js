@@ -1,5 +1,5 @@
 const express = require('express');
-const session = require('express-session');
+// const session = require('express-session');
 const bodyParser = require('body-parser');
 const db = require('./models');
 const app = express();
@@ -39,7 +39,7 @@ const uploadHandler = require('./app/middlewares/uploadHandler.js');
 //     next();
 // });
 app.use(cors({
-    origin: 'http://127.0.0.1:5500',
+    origin: ['http://127.0.0.1:5500', 'https://iemmanuel104.github.io/TaximaniaUI'],
     credentials: true
 }));
 app.use(morgan('dev'));
@@ -50,16 +50,16 @@ app.use(mongoSanitize());
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false }
-    // cookie: {
-    //     httpOnly: true, // Set the cookie to be HTTP-only to prevent client-side access
-    //     secure: true, // Set the cookie to be sent over HTTPS only
-    // },
-}));
+// app.use(session({
+//     secret: process.env.SESSION_SECRET,
+//     resave: false,
+//     saveUninitialized: true,
+//     cookie: { secure: false }
+//     // cookie: {
+//     //     httpOnly: true, // Set the cookie to be HTTP-only to prevent client-side access
+//     //     secure: true, // Set the cookie to be sent over HTTPS only
+//     // },
+// }));
 
 // Test the db connection
 db.sequelize.authenticate()  
@@ -83,6 +83,7 @@ const vehicle = require('./app/routes/vehicleRoute.js');
 const bookings = require('./app/routes/bookingsRoute.js');
 const payments = require('./app/routes/paymentsRoute.js');
 const adminauth = require('./app/routes/admin/adminauthRoute.js');
+const adminactions = require('./app/routes/admin/adminActionRoutes.js');
 
 app.use('/api/v1/auth', authRoute);
 app.use('/api/v1/host', host);
@@ -90,6 +91,7 @@ app.use('/api/v1/vehicle', vehicle);
 app.use('/api/v1/bookings', bookings);
 app.use('/api/v1/payments', payments);
 app.use('/api/v1/admin_auth', adminauth);
+app.use('/api/v1/admin_actions', adminactions);
 
 
 app.use(notFoundMiddleware);

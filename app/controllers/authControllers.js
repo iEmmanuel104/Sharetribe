@@ -210,10 +210,10 @@ const logout = asyncWrapper(async (req, res, next) => {
         if (!user) {
             return next(new CustomError.BadRequestError("Email does not exist"));
         }
-        const deleted = await Blacklist.create({
-            token: ACCESS_TOKEN,
-            token: REFRESH_TOKEN,
-        });
+        const deleted = await Blacklist.bulkCreate([
+            { token: ACCESS_TOKEN },
+            { token: REFRESH_TOKEN },
+        ], { transaction: t });
         if (deleted) {
             res.status(200).json({ message: "Logged out successfully" });
         }
@@ -370,6 +370,9 @@ const loginHost = asyncWrapper(async (req, res, next) => {
         const user = await User.findOne({ where: { email } });
         if (!user) {
             return next(new CustomError.BadRequestError("Email does not exist"));
+        }
+        if (!user.isActivated) {
+            return next(new CustomError.BadRequestError("Account deactivated, please contact support"));
         }
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
         if (!isPasswordCorrect) {

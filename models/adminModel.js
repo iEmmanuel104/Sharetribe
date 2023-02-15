@@ -81,7 +81,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM(["on", "off"]),
       allowNull: true,
       defaultValue: "off"
-    }
+    },
+    isActivated: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+      allowNull: false
+    },
  }, {
         tableName: 'user',
         // timestamps: false,

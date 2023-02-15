@@ -22,7 +22,7 @@ router.get('/all/vehicle', getAll);
 router.get('/get/:userId', getuserVehicles);
 router.get('/single/:vehicleId', getVehicleById);
 router.get('/getimages/:userId/:vehicleId', getVehicleImages);
-router.patch('/update/:userId/:vehicleId', permit("ADMIN HOST"), updateVehicle);
+router.patch('/update/:userId/:vehicleId', updateVehicle);
 router.delete('/delete/:userId/:vehicleId', permit("ADMIN HOST"), updateVehicle);
 router.get('/search/:userId', searchVehicle);
 router.patch('/verify/:vehicleId', permit("ADMIN"), verifyVehicle);

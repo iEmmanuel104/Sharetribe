@@ -1,5 +1,5 @@
-const FlutterwavePay = require('../utils/flutterwavePay.js');
-const CustomError = require("../utils/customErrors.js");
+const FlutterwavePay = require('../utils/flutterwavePay.js'); 
+const CustomError = require("../utils/customErrors.js"); 
 
 const makepayment = async (booking, user) => {
     const { bookingAmount, paymentReference, vehicle_id, hostuser, bookingId, user_Id } = booking;
