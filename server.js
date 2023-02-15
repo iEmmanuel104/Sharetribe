@@ -39,7 +39,7 @@ const uploadHandler = require('./app/middlewares/uploadHandler.js');
 //     next();
 // });
 app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'https://taximania-main.onrender.com'],
+    origin: 'https://taximania-main.onrender.com',
     credentials: true
 }));
 app.use(morgan('dev'));
