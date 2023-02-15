@@ -9,7 +9,6 @@ const asyncWrapper = require('../middlewares/async')
 const CustomError = require("../utils/customErrors.js"); 
 const uploadtocloudinary = require('../middlewares/cloudinary').uploadtocloudinary;
 const uploadresizeToCloudinary = require('../middlewares/cloudinary').uploadresizeToCloudinary;
-const makepayment = require('../utils/makepayment.js')
 const Op = require("sequelize").Op;
 const sharp = require('sharp');
 require('dotenv').config();

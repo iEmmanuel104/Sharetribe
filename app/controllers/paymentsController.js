@@ -10,7 +10,7 @@ require('dotenv').config();
 const asyncWrapper = require('../middlewares/async')
 const CustomError = require("../utils/customErrors.js");
 const uploadtocloudinary = require('../middlewares/cloudinary').uploadtocloudinary;
-const FlutterwavePay = require('../utils/flutterwavePay.js');
+// const FlutterwavePay = require('../utils/flutterwavePay.js');
 const Flutterwave = require('flutterwave-node-v3');
 const flw = new Flutterwave(process.env.FLW_PUBLIC_KEY, process.env.FLW_SECRET_KEY);
 const Op = require("sequelize").Op;
