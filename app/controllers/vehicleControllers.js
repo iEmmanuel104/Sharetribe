@@ -6,7 +6,7 @@ const Booking = db.Booking;
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async')
 const CustomError = require("../utils/customErrors.js"); 
-const uploadtocloudinary = require('../middlewares/cloudinary').uploadtocloudinary;
+const { uploadvehicleimages } = require("../utils/imageupload.service")
 const Op = require("sequelize").Op;
 const path = require('path');
 const { vehicleRegristrationMail,
@@ -32,42 +32,46 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
         }
         // check userdata if user is verified
         if (!userData) {
-            return next(new CustomError.BadRequestError(userData.verifyStatus !== 'Verified' ? " Please complete user verification before registering a vehicle" : "No user data found"));
+            return next(new CustomError.BadRequestError(userData.verifyStatus !== 'Verified' ? " Please complete user verification before registering a vehicle" : "No user data found")); 
         }
-
-
-        if (!req.files) {
-            return next(new CustomError.BadRequestError("No image uploaded please upload an image"));
-        }
-        if (!req.files.length > 5) {
-            throw new Error("Maximum of 5 images allowed");
-        }  
         if (vehicleExist) {
-        return next(new CustomError.BadRequestError(vehicleExist.user_id === userId ? "You already have a vehicle with this plate number and id number" : "Another user already has a vehicle with this plate number and id number"));
+            return next(new CustomError.BadRequestError(vehicleExist.user_id === userId ? "You already have a vehicle with this plate number and id number" : "Another user already has a vehicle with this plate number and id number"));
         }
+        if (!req.files) {
+            return next(new CustomError.BadRequestError("Please upload an image"));
+        }
+        // if (!req.files.length > 5) {
+        //     throw new Error("Maximum of 5 images allowed");
+        // }  
 
-        var bufferarray = [];
-        for (let i = 0; i < req.files.length; i++) {
-            var localfilepath = req.files[i].path;
-            var originalname = req.files[i].originalname;
-            var details = {
-                user: user.user_id,
-                name: originalname,
-                folder: "vehicles"
-            }
-            var uploadresult = await uploadtocloudinary(localfilepath, details);
-            // check for success response
-            if (uploadresult.message === 'error') {
-                return next(new CustomError.BadRequestError(uploadresult.message));
-            }
-            if (uploadresult.message === 'success') {
-                bufferarray.push(uploadresult.url);
-            }
-        }
-        if (bufferarray.length === 0) {
-            return next(new CustomError.BadRequestError("Error uploading images to cloudinary"));
-        }
-         const vehicle = await Vehicle.create({
+
+        // var bufferarray = [];
+        // for (let i = 0; i < req.files.length; i++) {
+        //     var localfilepath = req.files[i].path;
+        //     var originalname = req.files[i].originalname;
+        //     var details = {
+        //         user: user.user_id,
+        //         name: originalname,
+        //         folder: "vehicles"
+        //     }
+        //     var uploadresult = await uploadtocloudinary(localfilepath, details);
+        //     // check for success response
+        //     if (uploadresult.message === 'error') {
+        //         return next(new CustomError.BadRequestError(uploadresult.message));
+        //     }
+        //     if (uploadresult.message === 'success') {
+        //         bufferarray.push(uploadresult.url);
+        //     }
+        // }
+        // if (bufferarray.length === 0) {
+        //     return next(new CustomError.BadRequestError("Error uploading images to cloudinary"));
+        // }
+
+        const vehicle_images = await uploadvehicleimages(req, res, next);
+
+        const { banner, images } = vehicle_images;
+
+        const vehicle = await Vehicle.create({
             user_id: userId,
             vehicleMake,
             vehicleModel,
@@ -85,7 +89,8 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
             vehicleIdNumber,
             vehicleRegistrationDate,
             vehicleLocation,
-            vehicleImages: bufferarray
+            vehicleImages: images,
+            banner: banner
         }, { transaction: t });
 
         if (!vehicle) {

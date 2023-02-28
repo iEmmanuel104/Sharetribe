@@ -16,7 +16,10 @@ const {
 } = require('../controllers/vehicleControllers.js');
  
 // vehicle routes
-router.post('/register/:userId', permit("GUEST HOST"), upload.array("image", 5), registerVehicle);
+router.post('/register/:userId', permit("GUEST HOST"), upload.fields([
+    { name: 'images', maxCount: 5 },
+    { name: 'banner', maxCount: 1 }
+]), registerVehicle);
 router.get('/getall', getAllVehicle);
 router.get('/all/vehicle', getAll);
 router.get('/get/:userId', getuserVehicles);

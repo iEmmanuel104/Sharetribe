@@ -1,7 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
     const Blacklist = sequelize.define('Blacklist', {
         token: {
-            type: DataTypes.STRING,
+            type: DataTypes.TEXT('long'),
             allowNull: false
         }
     }, {

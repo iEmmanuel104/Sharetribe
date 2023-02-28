@@ -1,4 +1,4 @@
-const errorHandlerMiddleware = (err, req, res, next) => {
+const errorHandler = (err, req, res, next) => {
   console.log(err);
   let customError = {
     // set default
@@ -24,7 +24,16 @@ const errorHandlerMiddleware = (err, req, res, next) => {
   // for sequelize errors
   // if (err.name )
 
+  if (customError.statusCode === 500) {
+    return res.status(customError.statusCode).json({
+      error: {
+        status: customError.statusCode,
+        message: 'An error occurred'
+      }
+    });
+  }
+
   return res.status(customError.statusCode).json({ msg: customError.msg });
 };
 
-module.exports = errorHandlerMiddleware;
+module.exports = errorHandler;
