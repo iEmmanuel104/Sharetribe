@@ -5,12 +5,15 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "cross-env NODE_ENV=development nodemon server.js",
+    "build": "cross-env NODE_ENV=production nodemon server.js",
+    "devprod": "cross-env NODE_ENV=devprod nodemon server.js",
     "migrate": "npx sequelize-cli db:migrate",
+    "buildmigrate": "cross-env NODE_ENV=production npx sequelize-cli db:migrate",
     "create": "sequelize migration:create --name",
     "seed": "npx sequelize-cli db:seed:all",
     "down": "npx sequelize-cli db:migrate:undo",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "cross-env NODE_ENV=test mocha --exit --timeout 30000 tests/**/*.js"
   },
   "keywords": [],
   "author": "",
@@ -45,6 +48,7 @@
     "xss-clean": "^0.1.1"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "sequelize-cli": "^6.5.2"
   },
   "engines": {

@@ -40,32 +40,6 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
         if (!req.files) {
             return next(new CustomError.BadRequestError("Please upload an image"));
         }
-        // if (!req.files.length > 5) {
-        //     throw new Error("Maximum of 5 images allowed");
-        // }  
-
-
-        // var bufferarray = [];
-        // for (let i = 0; i < req.files.length; i++) {
-        //     var localfilepath = req.files[i].path;
-        //     var originalname = req.files[i].originalname;
-        //     var details = {
-        //         user: user.user_id,
-        //         name: originalname,
-        //         folder: "vehicles"
-        //     }
-        //     var uploadresult = await uploadtocloudinary(localfilepath, details);
-        //     // check for success response
-        //     if (uploadresult.message === 'error') {
-        //         return next(new CustomError.BadRequestError(uploadresult.message));
-        //     }
-        //     if (uploadresult.message === 'success') {
-        //         bufferarray.push(uploadresult.url);
-        //     }
-        // }
-        // if (bufferarray.length === 0) {
-        //     return next(new CustomError.BadRequestError("Error uploading images to cloudinary"));
-        // }
 
         const vehicle_images = await uploadvehicleimages(req, res, next);
 
@@ -105,7 +79,7 @@ const registerVehicle = asyncWrapper(async (req, res, next) => {
             message: 'success',
             data: {
                 vehicle,
-                cloudinaryupload: {message: 'successfully uploaded to cloudinary', url: bufferarray}
+                cloudinaryupload: {message: 'successfully uploaded to cloudinary'}
             }
         });
     });

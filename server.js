@@ -14,34 +14,26 @@ const notFoundMiddleware = require('./app/middlewares/not-found.js');
 const errorMiddleware = require('./app/middlewares/error-handler.js');
 require('express-async-errors');
 const uploadHandler = require('./app/middlewares/uploadHandler.js');
-
-// const corsOptions ={
-//     origin:'http://127.0.0.1:5000', 
-//     credentials:true,            //access-control-allow-credentials:true
-//     optionSuccessStatus:200
-// }
+const env = process.env.NODE_ENV 
 
 
-// app.use(cors(corsOptions));
-// app.use(morgan('dev'));
-// app.use(express.json());
-// app.use((req, res, next) => {
-//     const allowedOrigins = ["https://iemmanuel104.github.io", "http://127.0.0.1:5000"];
-//     const origin = req.headers.origin;
-//     if (allowedOrigins.includes(origin)) {
-//         res.setHeader('Access-Control-Allow-Origin', origin);
-//     }
 
-//     res.header('Access-Control-Allow-Methods', 'GET, OPTIONS, POST');
-//     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-//     res.header('Access-Control-Allow-Credentials', true);
+let whitelist = ['https://taximania-main.onrender.com', 'http://127.0.0.1:5500' ]
 
-//     next();
-// });
-app.use(cors({
-    origin: 'https://taximania-main.onrender.com',
-    credentials: true
-}));
+var corsOptions = {
+    origin: (origin, callback) => {
+        if (whitelist.indexOf(origin) !== -1) {
+            callback(null, true)
+        } else {
+            callback(new Error('Not allowed by CORS'))
+        }
+    },
+    optionsSuccessStatus: 200,
+    credentials: true // add this line to enable credentials support
+}
+
+app.use(cors(corsOptions));
+// app.use(cors())
 app.use(morgan('dev'));
 app.use(helmet());
 app.use(xss());
@@ -64,7 +56,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Test the db connection
 db.sequelize.authenticate()  
     .then(() => {
-        console.log('postgres connection has been established successfully.');
+        console.log('postgres connection has been established successfully.' + env );
     })
     .catch(err => {
         console.error('Unable to connect to the database:', err);
